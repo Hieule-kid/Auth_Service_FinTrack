@@ -1,0 +1,42 @@
+version: "1"
+projects:
+  - name: My project
+    environments:
+      - name: Production
+
+        services:
+          # ── Auth Service ──────────────────────────────────────────────────────
+          - type: web
+            name: fintrack-auth
+            runtime: docker
+            repo: https://github.com/Hieule-kid/Auth_Service_FinTrack
+            plan: free
+            region: singapore
+            dockerContext: .
+            dockerfilePath: ./Dockerfile
+            autoDeployTrigger: commit
+            port: 8081
+            envVars:
+              - key: FINTRACK_DEV_ENV
+                sync: false
+              - key: POSTGRES_URL
+                sync: false
+              - key: POSTGRES_USERNAME
+                sync: false
+              - key: POSTGRES_PASSWORD
+                sync: false
+              - key: EUREKA_DEFAULT_ZONE
+                sync: false
+              - key: EUREKA_USERNAME
+                sync: false
+              - key: EUREKA_PASSWORD
+                sync: false
+              - key: FINTRACK_JWT_SECRET
+                sync: false
+              - key: FRONTEND_ORIGIN
+                sync: false
+              - key: RENDER_EXTERNAL_HOSTNAME
+                fromService:
+                  name: fintrack-auth
+                  type: web
+                  property: host
