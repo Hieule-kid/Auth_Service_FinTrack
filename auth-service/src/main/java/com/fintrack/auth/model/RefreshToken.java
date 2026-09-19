@@ -21,22 +21,8 @@ import java.time.Instant;
 /**
  * JPA entity storing issued refresh tokens.
  *
- * <p>Refresh tokens are long-lived (default 7 days) and allow clients to obtain
- * new access tokens without re-authenticating. A token is invalidated on:
- * <ul>
- *   <li>Explicit logout ({@code deleteByUserId})</li>
- *   <li>Expiry ({@code expiryDate} is in the past — checked in the service layer)</li>
- *   <li>User account deletion (cascades via the service layer)</li>
- * </ul>
- *
  * <p>Table: {@code refresh_tokens}
  *
- * <p><b>Note:</b> Unlike MongoDB's TTL index, PostgreSQL does not auto-delete expired rows.
- * A scheduled cleanup job should periodically run:
- * {@code DELETE FROM refresh_tokens WHERE expiry_date < NOW()}
- *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Getter
 @Setter
@@ -64,15 +50,11 @@ public class RefreshToken {
     @Column(name = "token", unique = true, nullable = false, length = 36)
     private String token;
 
-    /** ID of the {@link User} this token belongs to. */
     @NotBlank(message = "User ID cannot be blank")
     @Column(name = "user_id", nullable = false, length = 36)
     private String userId;
 
-    /**
-     * Absolute expiry timestamp (UTC).
-     * Tokens past this date are rejected and deleted lazily by the service layer.
-     */
+    /** Absolute expiry timestamp (UTC). */
     @NotNull(message = "Expiry date cannot be null")
     @Column(name = "expiry_date", nullable = false)
     private Instant expiryDate;

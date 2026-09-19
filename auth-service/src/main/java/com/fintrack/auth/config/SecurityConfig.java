@@ -32,16 +32,6 @@ import java.util.List;
 /**
  * Spring Security configuration for the Auth Service.
  *
- * <p>Security model:
- * <ul>
- *   <li>Stateless JWT — no HTTP session is created</li>
- *   <li>Public endpoints: {@code /api/v1/auth/**}, {@code /actuator/health}</li>
- *   <li>All other endpoints require a valid JWT</li>
- *   <li>{@code @PreAuthorize} is enabled via {@code @EnableMethodSecurity}</li>
- * </ul>
- *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Configuration
 @EnableWebSecurity
@@ -67,26 +57,15 @@ public class SecurityConfig {
         return source;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Security Filter Chain
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter,
                                                     CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
-
-            // Disable CSRF — not needed for stateless REST APIs
             .csrf(AbstractHttpConfigurer::disable)
-
-            // Stateless session — do NOT create or use HTTP sessions
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-            // Request authorization rules
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints — no authentication required
                 .requestMatchers(
                     "/api/v1/auth/login",
                     "/api/v1/auth/register",
@@ -94,35 +73,20 @@ public class SecurityConfig {
                     "/ping",
                     "/actuator/health",
                     "/actuator/info",
-                    // Swagger UI — allow access without JWT in dev
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs",
                     "/v3/api-docs/**",
                     "/v3/api-docs.yaml"
                 ).permitAll()
-                // All other requests require a valid JWT
                 .anyRequest().authenticated()
             )
-
-            // Wire authentication provider
             .authenticationProvider(authenticationProvider())
-
-            // Add JWT filter before Spring's username/password filter
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Authentication beans
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Loads user from MongoDB for Spring Security authentication.
-     *
-     * @return a {@link UserDetailsService} backed by MongoDB
-     */
     @Bean
     public UserDetailsService userDetailsService() {
         return username -> userRepository
@@ -131,11 +95,6 @@ public class SecurityConfig {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 
-    /**
-     * DAO authentication provider wiring the UserDetailsService and PasswordEncoder.
-     *
-     * @return configured {@link AuthenticationProvider}
-     */
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
@@ -154,24 +113,12 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * Exposes the {@link AuthenticationManager} as a Spring bean so it can be
-     * injected into controllers or services if needed.
-     *
-     * @param config the Spring authentication configuration
-     * @return the {@link AuthenticationManager}
-     * @throws Exception if retrieval fails
-     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
             throws Exception {
         return config.getAuthenticationManager();
     }
-    /**
-     * Creates the JWT authentication filter bean.
-     *
-     * @return configured {@link JwtAuthFilter}
-     */
+
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         return new JwtAuthFilter(jwtService, userDetailsService);

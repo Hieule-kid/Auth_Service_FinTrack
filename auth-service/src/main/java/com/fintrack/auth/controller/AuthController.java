@@ -29,8 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Base path: {@code /api/v1/auth}
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @RestController
 @RequestMapping("/api/v1/auth")

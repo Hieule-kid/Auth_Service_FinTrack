@@ -38,8 +38,6 @@ import java.util.Set;
  * <p>Table: {@code users}
  * <p>Roles are stored in a join table {@code user_roles}.
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Getter
 @Setter
@@ -51,35 +49,21 @@ import java.util.Set;
 @Table(name = "users")
 public class User extends BaseEntity implements UserDetails {
 
-    /** Display name — not required to be unique. */
     @Column(name = "full_name", length = 100)
     private String fullName;
 
-    /**
-     * Username used for login — unique across the system.
-     */
     @NotBlank(message = "Username cannot be blank")
     @Column(name = "username", unique = true, nullable = false, length = 50)
     private String username;
 
-    /**
-     * Email address — unique, used as an alternative login identifier.
-     */
     @NotBlank(message = "Email cannot be blank")
     @Column(name = "email", unique = true, nullable = false, length = 100)
     private String email;
 
-    /**
-     * BCrypt-hashed password. Never store or return plain-text passwords.
-     */
     @NotNull(message = "Password cannot be null")
     @Column(name = "password_hash", nullable = false)
     private String password;
 
-    /**
-     * Roles granted to this user.
-     * Stored in a separate {@code user_roles} join table as VARCHAR strings.
-     */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "user_roles",
@@ -92,27 +76,15 @@ public class User extends BaseEntity implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Currency currency;
 
-    /**
-     * OAuth2 linked accounts for social login (Google, GitHub, etc.).
-     * Cascade delete ensures orphaned accounts are removed when the user is deleted.
-     * Uses HashSet to prevent duplicate accounts.
-     */
     @Builder.Default
     @OneToMany(mappedBy = "user", orphanRemoval = true)
     private Set<Account> accounts = new HashSet<>();
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // UserDetails — Spring Security contract
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles;
     }
 
-    /**
-     * Delegates to {@link BaseEntity#isDeleted()} — a soft-deleted user cannot log in.
-     */
     @Override
     public boolean isEnabled() {
         return !isDeleted();

@@ -9,8 +9,6 @@ import lombok.Setter;
 /**
  * Request payload for the {@code PATCH /api/v1/users/currency} endpoint.
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Getter
 @Setter

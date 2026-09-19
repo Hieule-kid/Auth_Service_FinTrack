@@ -12,8 +12,6 @@ import java.util.Optional;
  * <p>Spring Data JPA generates implementations at runtime.
  * All queries automatically filter soft-deleted users via {@code deleted = false}.
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {

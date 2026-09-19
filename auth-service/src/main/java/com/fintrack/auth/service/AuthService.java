@@ -14,8 +14,6 @@ import com.fintrack.auth.dto.response.UserResponse;
  * <p>Implementations handle credential validation, token issuance,
  * and user lifecycle management.
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 public interface AuthService {
 

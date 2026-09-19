@@ -28,10 +28,6 @@ public class JwtService {
     @Value("${fintrack.jwt.access-token-expiry-ms}")
     private long accessTokenExpiryMs;
 
-    /**
-     * Refuse to run without a real production secret. A predictable fallback would
-     * allow anyone who has the source code to forge access tokens.
-     */
     @PostConstruct
     void validateSecret() {
         if (secret == null || secret.length() < 32 || secret.contains("change-me")) {
@@ -83,10 +79,6 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Token validation
-    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Validates a JWT against the given user — checks signature, expiry, and subject match.
@@ -140,10 +132,6 @@ public class JwtService {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Access token expiry helper
-    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * @return access token lifetime in seconds (for the {@code expiresIn} response field)

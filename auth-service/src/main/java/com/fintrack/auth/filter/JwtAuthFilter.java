@@ -38,7 +38,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader(AUTHORIZATION_HEADER);
 
-        // Skip if no Bearer token present
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             filterChain.doFilter(request, response);
             return;
@@ -62,7 +61,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                             );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // Store authentication in the security context for this request
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }

@@ -23,16 +23,6 @@ import java.util.List;
  *   <li>{@code http://localhost:8081/v3/api-docs}     — raw OpenAPI JSON spec</li>
  * </ul>
  *
- * <p><b>Authentication in Swagger UI:</b>
- * <ol>
- *   <li>Call {@code POST /api/v1/auth/login} to get an access token</li>
- *   <li>Click the 🔒 <b>Authorize</b> button at the top right</li>
- *   <li>Enter {@code Bearer <your-token>} and click Authorize</li>
- *   <li>All subsequent requests will include the JWT header</li>
- * </ol>
- *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Configuration
 public class OpenApiConfig {
@@ -43,20 +33,9 @@ public class OpenApiConfig {
     @Value("${server.port:8081}")
     private String serverPort;
 
-    /**
-     * Builds the global {@link OpenAPI} bean with:
-     * <ul>
-     *   <li>API metadata (title, description, version, contact)</li>
-     *   <li>Server URLs (local dev by default)</li>
-     *   <li>Global JWT Bearer security scheme applied to all protected endpoints</li>
-     * </ul>
-     *
-     * @return fully configured {@link OpenAPI} instance
-     */
     @Bean
     public OpenAPI fintrackAuthOpenAPI() {
         return new OpenAPI()
-                // ── API Info ──────────────────────────────────────────────────────
                 .info(new Info()
                         .title("FinTrack – Auth Service API")
                         .description("""
@@ -75,19 +54,13 @@ public class OpenApiConfig {
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT"))
                 )
-
-                // ── Server URLs ────────────────────────────────────────────────────
                 .servers(List.of(
                         new Server()
                                 .url("http://localhost:" + serverPort)
                                 .description("Local Development Server")
                 ))
-
-                // ── Apply JWT security globally (can override per-endpoint with @SecurityRequirement) ──
                 .addSecurityItem(new SecurityRequirement()
                         .addList(SECURITY_SCHEME_NAME))
-
-                // ── Security Scheme definition (shown in the Authorize dialog) ────
                 .components(new Components()
                         .addSecuritySchemes(SECURITY_SCHEME_NAME,
                                 new SecurityScheme()

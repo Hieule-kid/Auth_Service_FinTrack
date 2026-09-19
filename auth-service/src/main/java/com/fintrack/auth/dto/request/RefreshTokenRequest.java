@@ -7,8 +7,6 @@ import lombok.Setter;
 /**
  * Request payload for the {@code POST /api/v1/auth/refresh} endpoint.
  *
- * @author FinTrack Team
- * @since 1.0.0
  */
 @Getter
 @Setter
