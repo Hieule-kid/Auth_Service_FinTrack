@@ -33,8 +33,18 @@ public class OpenApiConfig {
     @Value("${server.port:8081}")
     private String serverPort;
 
+    @Value("${RENDER_EXTERNAL_HOSTNAME:}")
+    private String renderExternalHostname;
+
     @Bean
     public OpenAPI fintrackAuthOpenAPI() {
+        List<Server> servers = renderExternalHostname.isBlank()
+                ? List.of(new Server().url("http://localhost:" + serverPort).description("Local Development Server"))
+                : List.of(
+                        new Server().url("https://" + renderExternalHostname).description("Production Server"),
+                        new Server().url("http://localhost:" + serverPort).description("Local Development Server")
+                );
+
         return new OpenAPI()
                 .info(new Info()
                         .title("FinTrack – Auth Service API")
@@ -54,11 +64,7 @@ public class OpenApiConfig {
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT"))
                 )
-                .servers(List.of(
-                        new Server()
-                                .url("http://localhost:" + serverPort)
-                                .description("Local Development Server")
-                ))
+                .servers(servers)
                 .addSecurityItem(new SecurityRequirement()
                         .addList(SECURITY_SCHEME_NAME))
                 .components(new Components()
