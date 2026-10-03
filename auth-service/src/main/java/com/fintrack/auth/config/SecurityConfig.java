@@ -1,14 +1,19 @@
 package com.fintrack.auth.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fintrack.auth.filter.JwtAuthFilter;
 import com.fintrack.auth.repository.UserRepository;
 import com.fintrack.auth.service.JwtService;
+import com.fintrack.core.dto.ApiResponse;
 import com.fintrack.core.exception.AppException;
 import com.fintrack.core.exception.ErrorCode;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -27,11 +32,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
  * Spring Security configuration for the Auth Service.
  *
+ * <p>Unauthenticated requests to protected paths return {@code 401} and authenticated-but-forbidden
+ * requests return {@code 403}, both as an {@link ApiResponse} JSON body. This mirrors the Planning
+ * Service so clients (the FE interceptor and BFF silent refresh) can rely on 401 to trigger a token
+ * refresh. Without these handlers Spring Security's default is a bare, empty-body 403 for anonymous
+ * callers.
  */
 @Configuration
 @EnableWebSecurity
@@ -40,6 +52,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.cors.allowed-origin}")
     private String allowedOrigin;
@@ -80,6 +93,12 @@ public class SecurityConfig {
                     "/v3/api-docs.yaml"
                 ).permitAll()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) ->
+                        writeError(response, ErrorCode.UNAUTHORIZED))
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                        writeError(response, ErrorCode.FORBIDDEN))
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -122,6 +141,25 @@ public class SecurityConfig {
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         return new JwtAuthFilter(jwtService, userDetailsService);
+    }
+
+    /**
+     * Stops Spring Boot from also registering {@link JwtAuthFilter} as a plain servlet filter.
+     * It must only run inside the Spring Security filter chain (same as the Planning Service).
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtFilterRegistration(JwtAuthFilter jwtAuthFilter) {
+        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(jwtAuthFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    private void writeError(HttpServletResponse response, ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.getHttpStatus().value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        ApiResponse<Void> body = ApiResponse.error(errorCode.getCode(), errorCode.getMessage());
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }
 

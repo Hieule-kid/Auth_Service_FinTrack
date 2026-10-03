@@ -92,7 +92,8 @@ logging:
   level:
     com.fintrack.auth: DEBUG
     org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
+    # Statement logging floods production logs; set HIBERNATE_SQL_LOG_LEVEL=DEBUG locally when needed.
+    org.hibernate.SQL: ${HIBERNATE_SQL_LOG_LEVEL:INFO}
 
 # ── Swagger / SpringDoc ────────────────────────────────────────────────────
 springdoc:
