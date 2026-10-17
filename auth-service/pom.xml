@@ -22,6 +22,12 @@
             <artifactId>core</artifactId>
         </dependency>
 
+        <!-- Mail: password-reset e-mails over SMTP -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Web MVC: REST controller support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

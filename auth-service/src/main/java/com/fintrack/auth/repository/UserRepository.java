@@ -33,6 +33,14 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByEmailAndDeletedFalse(String email);
 
     /**
+     * Finds a non-deleted user by email, ignoring case (used by the password-reset flow).
+     *
+     * @param email the email to search for
+     * @return an {@link Optional} containing the user if found
+     */
+    Optional<User> findByEmailIgnoreCaseAndDeletedFalse(String email);
+
+    /**
      * Checks whether a username is already taken by a non-deleted user.
      *
      * @param username the username to check

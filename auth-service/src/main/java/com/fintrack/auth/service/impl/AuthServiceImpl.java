@@ -1,15 +1,20 @@
 package com.fintrack.auth.service.impl;
 
+import com.fintrack.auth.dto.request.ForgotPasswordRequest;
 import com.fintrack.auth.dto.request.LoginRequest;
 import com.fintrack.auth.dto.request.RefreshTokenRequest;
 import com.fintrack.auth.dto.request.RegisterRequest;
+import com.fintrack.auth.dto.request.ResetPasswordRequest;
 import com.fintrack.auth.dto.request.UpdateCurrencyRequest;
 import com.fintrack.auth.dto.request.UpdateUserProfileRequest;
 import com.fintrack.auth.dto.response.AuthResponse;
 import com.fintrack.auth.dto.response.UserResponse;
+import com.fintrack.auth.mail.PasswordResetMailer;
+import com.fintrack.auth.model.PasswordResetToken;
 import com.fintrack.auth.model.RefreshToken;
 import com.fintrack.auth.model.User;
 import com.fintrack.auth.model.enums.Role;
+import com.fintrack.auth.repository.PasswordResetTokenRepository;
 import com.fintrack.auth.repository.RefreshTokenRepository;
 import com.fintrack.auth.repository.UserRepository;
 import com.fintrack.auth.service.AuthService;
@@ -26,7 +31,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,9 +51,22 @@ public class AuthServiceImpl implements AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordResetMailer passwordResetMailer;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Value("${fintrack.jwt.refresh-token-expiry-days:7}")
     private int refreshTokenExpiryDays;
+
+    @Value("${app.password-reset.token-ttl-minutes:30}")
+    private long resetTokenTtlMinutes;
+
+    @Value("${app.password-reset.request-cooldown-seconds:60}")
+    private long resetRequestCooldownSeconds;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -194,5 +219,74 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return buildAuthResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail().trim();
+
+        // Unknown address: do nothing, and say nothing — the controller answers 200 either way.
+        userRepository.findByEmailIgnoreCaseAndDeletedFalse(email).ifPresent(user -> {
+            Instant now = Instant.now();
+
+            // Per-account throttle: stops the endpoint being used to mail-bomb a victim.
+            if (passwordResetTokenRepository.existsByUserIdAndCreatedAtAfter(
+                    user.getId(), now.minusSeconds(resetRequestCooldownSeconds))) {
+                log.info("Password reset throttled: userId={}", user.getId());
+                return;
+            }
+
+            // Only the newest link is valid.
+            passwordResetTokenRepository.deleteByUserId(user.getId());
+
+            byte[] bytes = new byte[32];
+            SECURE_RANDOM.nextBytes(bytes);
+            String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+
+            passwordResetTokenRepository.save(PasswordResetToken.builder()
+                    .tokenHash(hashToken(rawToken))
+                    .userId(user.getId())
+                    .createdAt(now)
+                    .expiryDate(now.plus(Duration.ofMinutes(resetTokenTtlMinutes)))
+                    .build());
+
+            String link = frontendUrl.replaceAll("/+$", "") + "/reset-password?token=" + rawToken;
+            passwordResetMailer.sendResetLink(user.getEmail(), user.getFullName(), link, resetTokenTtlMinutes);
+            log.info("Password reset requested: userId={}", user.getId());
+        });
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken stored = passwordResetTokenRepository
+                .findByTokenHash(hashToken(request.getToken()))
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_TOKEN));
+
+        if (stored.getExpiryDate().isBefore(Instant.now())) {
+            passwordResetTokenRepository.delete(stored);
+            throw new AppException(ErrorCode.TOKEN_EXPIRED);
+        }
+
+        User user = getUserOrThrow(stored.getUserId());
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Single use, and invalidate every outstanding link and session: whoever held the old
+        // password (or a stolen refresh token) must not stay signed in.
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        refreshTokenRepository.deleteByUserId(user.getId());
+        log.info("Password reset completed: userId={}", user.getId());
+    }
+
+    private static String hashToken(String rawToken) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 }
