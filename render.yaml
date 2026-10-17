@@ -35,6 +35,16 @@ projects:
                 sync: false
               - key: FRONTEND_ORIGIN
                 sync: false
+              - key: MAIL_HOST
+                sync: false
+              - key: MAIL_PORT
+                sync: false
+              - key: MAIL_USERNAME
+                sync: false
+              - key: MAIL_PASSWORD
+                sync: false
+              - key: MAIL_FROM
+                sync: false
               - key: RENDER_EXTERNAL_HOSTNAME
                 fromService:
                   name: fintrack-auth

@@ -1,11 +1,13 @@
 package com.fintrack.auth.config;
 
+import com.fintrack.auth.repository.PasswordResetTokenRepository;
 import com.fintrack.auth.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 public class TokenCleanupScheduler {
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredTokens() {
@@ -26,7 +29,9 @@ public class TokenCleanupScheduler {
 
         refreshTokenRepository.deleteAllExpiredBefore(now);
 
-        log.info("Expired refresh tokens cleanup completed");
+        passwordResetTokenRepository.deleteAllExpiredBefore(Instant.now());
+
+        log.info("Expired refresh and password reset tokens cleanup completed");
     }
 }
 

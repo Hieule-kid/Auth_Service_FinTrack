@@ -1,8 +1,10 @@
 package com.fintrack.auth.controller;
 
+import com.fintrack.auth.dto.request.ForgotPasswordRequest;
 import com.fintrack.auth.dto.request.LoginRequest;
 import com.fintrack.auth.dto.request.RefreshTokenRequest;
 import com.fintrack.auth.dto.request.RegisterRequest;
+import com.fintrack.auth.dto.request.ResetPasswordRequest;
 import com.fintrack.auth.dto.response.AuthResponse;
 import com.fintrack.auth.dto.response.UserResponse;
 import com.fintrack.auth.service.AuthService;
@@ -103,5 +105,37 @@ public class AuthController {
         com.fintrack.auth.model.User user = (com.fintrack.auth.model.User) userDetails;
         authService.logout(user.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+        summary = "Request a password-reset e-mail",
+        description = "Always returns 200 with the same body, whether or not the e-mail is registered, to prevent account enumeration."
+    )
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "If the account exists, a reset link was sent"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error")
+    })
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.<Void>success(null,
+                "If an account exists for that email, a reset link has been sent"));
+    }
+
+    @Operation(
+        summary = "Reset password using an e-mailed token",
+        description = "Sets a new password and revokes all refresh tokens for the user. The token is single-use."
+    )
+    @ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password updated"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Token is invalid, used, or expired")
+    })
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.<Void>success(null, "Password has been reset"));
     }
 }

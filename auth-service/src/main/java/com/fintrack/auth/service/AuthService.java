@@ -1,8 +1,10 @@
 package com.fintrack.auth.service;
 
+import com.fintrack.auth.dto.request.ForgotPasswordRequest;
 import com.fintrack.auth.dto.request.LoginRequest;
 import com.fintrack.auth.dto.request.RefreshTokenRequest;
 import com.fintrack.auth.dto.request.RegisterRequest;
+import com.fintrack.auth.dto.request.ResetPasswordRequest;
 import com.fintrack.auth.dto.request.UpdateCurrencyRequest;
 import com.fintrack.auth.dto.request.UpdateUserProfileRequest;
 import com.fintrack.auth.dto.response.AuthResponse;
@@ -94,5 +96,25 @@ public interface AuthService {
      *         if the password does not match
      */
     AuthResponse login(LoginRequest request);
-}
 
+    /**
+     * Starts the password-reset flow by e-mailing a single-use link to the account, if one exists.
+     *
+     * <p>Returns normally whether or not the e-mail matches an account (and whether or not the
+     * request was throttled) so callers cannot enumerate registered addresses.
+     *
+     * @param request the validated payload containing the account e-mail
+     */
+    void forgotPassword(ForgotPasswordRequest request);
+
+    /**
+     * Sets a new password using a token from a reset e-mail, then revokes all of the user's sessions.
+     *
+     * @param request the validated payload containing the raw token and the new password
+     * @throws com.fintrack.core.exception.AppException with {@code INVALID_TOKEN}
+     *         if the token is unknown or already used
+     * @throws com.fintrack.core.exception.AppException with {@code TOKEN_EXPIRED}
+     *         if the token has expired
+     */
+    void resetPassword(ResetPasswordRequest request);
+}
