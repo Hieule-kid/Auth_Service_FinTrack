@@ -63,6 +63,8 @@ public class PasswordResetToken {
 
     /** Used to throttle repeated requests for the same account. */
     @NotNull(message = "Created timestamp cannot be null")
-    @Column(name = "created_at", nullable = false, updatable = false)
+    // DB default lets `ddl-auto: update` add this NOT NULL column to a pre-existing table with rows.
+    @Column(name = "created_at", nullable = false, updatable = false,
+            columnDefinition = "timestamp(6) with time zone default now()")
     private Instant createdAt;
 }
