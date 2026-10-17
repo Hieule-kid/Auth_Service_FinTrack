@@ -57,6 +57,10 @@ Or run directly with Maven (after exporting `GITHUB_ACTOR`/`GITHUB_TOKEN`):
 | `MAIL_PASSWORD` | 16-char **App Password** (needs 2-step verification; your normal password will not work) |
 | `MAIL_FROM` | same as `MAIL_USERNAME` for Gmail |
 
+**Local dev with docker compose:** a Mailpit container is included and used by default (`MAIL_HOST=mailpit`, port 1025, no auth/TLS). Open <http://localhost:8025> to read every e-mail the service sends — nothing reaches a real inbox. Running auth-service on the host (`spring-boot:run`) instead? Set `MAIL_HOST=localhost MAIL_PORT=1025 MAIL_SMTP_AUTH=false MAIL_STARTTLS=false`.
+
+For a real provider set `MAIL_SMTP_AUTH=true` and `MAIL_STARTTLS=true` together with the vars above.
+
 With `MAIL_HOST` empty nothing is sent; the link is logged at DEBUG as `[DEV ONLY] password reset link ...`. Other providers (Brevo, Resend, SES) work the same way with their SMTP credentials and a verified sender domain. On Render, set the same vars in the service's environment (they are declared in `render.yaml`).
 
 ## Tests
