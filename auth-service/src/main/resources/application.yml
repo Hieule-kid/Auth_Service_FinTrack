@@ -90,6 +90,10 @@ fintrack:
 
 # ── Actuator ──────────────────────────────────────────────────────────────
 management:
+  health:
+    # An SMTP outage must not mark the whole service DOWN (Render would restart it).
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:

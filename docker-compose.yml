@@ -43,6 +43,12 @@ services:
       EUREKA_PASSWORD: ${EUREKA_PASSWORD}
       FINTRACK_JWT_SECRET: ${FINTRACK_JWT_SECRET}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+      # SMTP for password-reset e-mails. Leave MAIL_HOST empty to disable sending.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@fintrack.local}
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
