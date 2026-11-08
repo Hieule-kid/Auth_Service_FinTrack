@@ -18,7 +18,8 @@ This document captures the *why* behind the Auth Service: business rules, cross-
 - Recommended client handling of the login/refresh response: keep the access token in memory only (never `localStorage`), store the refresh token in an HttpOnly cookie, attach the access token as `Authorization: Bearer <token>` on every request, and call `POST /api/v1/auth/refresh` once the access token expires (see `AuthResponse.java`).
 - The service refuses to start if `fintrack.jwt.secret` is missing, shorter than 32 characters, or still contains the placeholder text `change-me`. A predictable or default secret would let anyone with the source code forge valid access tokens, so this is enforced at startup rather than left to configuration discipline (see `JwtService.java`, `validateSecret`).
 - Refresh tokens are stored in PostgreSQL, which — unlike the project's earlier MongoDB-based storage — has no TTL index to auto-expire rows. A scheduled job (`TokenCleanupScheduler`, runs daily at 02:00) deletes tokens whose `expiry_date` has passed. Expired tokens are also rejected lazily by the service layer whenever `/refresh` is called, even before the cleanup job runs (see `TokenCleanupScheduler.java`; `RefreshToken.java`; `RefreshTokenRepository.java`).
-- A refresh token is invalidated (deleted) on: explicit logout, expiry, or the daily cleanup job. Presenting an invalidated token to `/refresh` results in an error (see `RefreshToken.java`).
+- A refresh token is invalidated (deleted) on: explicit logout, expiry, use (rotation), or the daily cleanup job. Presenting an invalidated token to `/refresh` results in an error (see `RefreshToken.java`).
+- `/refresh` only issues new tokens for an account that still exists and is enabled. A refresh token belonging to a soft-deleted account is deleted and rejected with `INVALID_TOKEN`, so deleting an account ends its sessions within one access-token lifetime (see `AuthServiceImpl.java`, `refresh`).
 
 ## Password & Credential Handling
 
@@ -28,13 +29,12 @@ This document captures the *why* behind the Auth Service: business rules, cross-
 ## User Profile & Currency
 
 - `PUT /api/v1/users/profile` is a full replace of the profile: full name, email, and currency are all required and all get overwritten. It is not a partial update — use `PATCH /api/v1/users/currency` for a partial, currency-only update (see `UpdateUserProfileRequest.java`).
-- Because email also doubles as an alternative login identifier, a profile update that changes the email is checked for uniqueness against other users before being saved, to avoid two accounts sharing a login identifier (see `AuthServiceImpl.java`, `updateProfile`).
+- Because email also doubles as an alternative login identifier, it is trimmed and lowercased before being stored, and registration, login and profile updates all compare it case-insensitively. `Alice@x.com` and `alice@x.com` are the same account. A unique-constraint violation on save (a concurrent registration, or an email still held by a soft-deleted account) is reported as `DUPLICATE_EMAIL` instead of a 500 (see `AuthServiceImpl.java`, `register`, `updateProfile`, `normalizeEmail`).
 
 ## Authorization / Roles
 
 - `ROLE_ADMIN` grants full administrative access and is intended to be assigned only to designated administrators.
-- `ROLE_USER` is the standard role, intended to be assigned automatically at registration (see `Role.java`).
-- **Discrepancy worth confirming:** as currently implemented, `AuthServiceImpl.register` assigns every newly-registered account `ROLE_ADMIN` rather than `ROLE_USER`. This contradicts the intended role semantics above and may be a bug (see `AuthServiceImpl.java`, `register`).
+- `ROLE_USER` is the standard role and is what `AuthServiceImpl.register` assigns to every new account. Admins must be promoted explicitly; registration never grants `ROLE_ADMIN` (see `Role.java`; `AuthServiceImpl.java`, `register`).
 
 ## OAuth2 Linked Accounts
 

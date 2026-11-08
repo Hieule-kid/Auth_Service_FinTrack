@@ -32,6 +32,10 @@ public interface UserRepository extends JpaRepository<User, String> {
      */
     Optional<User> findByEmailAndDeletedFalse(String email);
 
+    Optional<User> findByEmailIgnoreCaseAndDeletedFalse(String email);
+
+    Optional<User> findByIdAndDeletedFalse(String id);
+
     /**
      * Checks whether a username is already taken by a non-deleted user.
      *

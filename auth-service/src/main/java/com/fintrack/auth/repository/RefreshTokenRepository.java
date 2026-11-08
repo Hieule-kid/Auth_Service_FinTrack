@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -43,5 +43,5 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Stri
     @Modifying
     @Transactional
     @Query("DELETE FROM RefreshToken rt WHERE rt.expiryDate < :now")
-    void deleteAllExpiredBefore(LocalDateTime now);
+    void deleteAllExpiredBefore(Instant now);
 }
