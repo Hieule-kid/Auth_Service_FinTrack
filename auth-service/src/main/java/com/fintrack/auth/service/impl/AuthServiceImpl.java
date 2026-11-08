@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -50,20 +51,28 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.DUPLICATE_USERNAME);
         }
 
-        if (userRepository.existsByEmailAndDeletedFalse(request.getEmail())) {
+        String email = normalizeEmail(request.getEmail());
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedFalse(email)) {
             throw new AppException(ErrorCode.DUPLICATE_EMAIL);
         }
 
         User user = User.builder()
                 .fullName(request.getFullName())
                 .username(request.getUsername())
-                .email(request.getEmail())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
-                .roles(Set.of(Role.ADMIN))
+                .roles(Set.of(Role.USER))
                 .currency(request.getCurrency())
                 .build();
 
-        User savedUser = userRepository.save(user);
+        User savedUser;
+        try {
+            savedUser = userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            // Lost a race with a concurrent registration, or the identifier still belongs to a
+            // soft-deleted account (the DB unique constraint ignores the deleted flag).
+            throw new AppException(ErrorCode.DUPLICATE_EMAIL);
+        }
         log.info("New user registered: username={}, email={}", savedUser.getUsername(), savedUser.getEmail());
 
         return toUserResponse(savedUser);
@@ -81,9 +90,13 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.TOKEN_EXPIRED);
         }
 
-        User user = getUserOrThrow(storedToken.getUserId());
-
         refreshTokenRepository.delete(storedToken);
+
+        // A deleted or disabled account must not be able to keep rotating refresh tokens.
+        User user = userRepository.findByIdAndDeletedFalse(storedToken.getUserId())
+                .filter(User::isEnabled)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_TOKEN));
+
         return buildAuthResponse(user);
     }
 
@@ -106,18 +119,19 @@ public class AuthServiceImpl implements AuthService {
     public UserResponse updateProfile(String userId, UpdateUserProfileRequest request) {
         User user = getUserOrThrow(userId);
 
-        if (!user.getEmail().equalsIgnoreCase(request.getEmail())
-                && userRepository.existsByEmailIgnoreCaseAndDeletedFalse(request.getEmail())) {
+        String email = normalizeEmail(request.getEmail());
+        if (!user.getEmail().equalsIgnoreCase(email)
+                && userRepository.existsByEmailIgnoreCaseAndDeletedFalse(email)) {
             throw new AppException(ErrorCode.DUPLICATE_EMAIL);
         }
 
         user.setFullName(request.getFullName());
-        user.setEmail(request.getEmail());
+        user.setEmail(email);
         user.setCurrency(request.getCurrency());
 
         User savedUser;
         try {
-            savedUser = userRepository.save(user);
+            savedUser = userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
             throw new AppException(ErrorCode.DUPLICATE_EMAIL);
         }
@@ -141,8 +155,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User getUserOrThrow(String userId) {
-        return userRepository.findById(userId)
+        return userRepository.findByIdAndDeletedFalse(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /** Email doubles as a login identifier, so it is compared and stored case-insensitively. */
+    private static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
     private AuthResponse buildAuthResponse(User user) {
@@ -186,7 +205,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsernameAndDeletedFalse(request.getEmailOrUsername())
-                .or(() -> userRepository.findByEmailAndDeletedFalse(request.getEmailOrUsername()))
+                .or(() -> userRepository.findByEmailIgnoreCaseAndDeletedFalse(request.getEmailOrUsername().trim()))
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

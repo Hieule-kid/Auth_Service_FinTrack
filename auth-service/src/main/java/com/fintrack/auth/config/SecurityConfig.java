@@ -110,7 +110,7 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService() {
         return username -> userRepository
                 .findByUsernameAndDeletedFalse(username)
-                .or(() -> userRepository.findByEmailAndDeletedFalse(username))
+                .or(() -> userRepository.findByEmailIgnoreCaseAndDeletedFalse(username))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 

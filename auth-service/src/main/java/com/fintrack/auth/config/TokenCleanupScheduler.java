@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Scheduled job to clean up expired refresh tokens from the database.
@@ -21,7 +21,7 @@ public class TokenCleanupScheduler {
 
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredTokens() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         log.info("Running expired token cleanup at {}", now);
 
         refreshTokenRepository.deleteAllExpiredBefore(now);
